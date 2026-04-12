@@ -1,0 +1,23 @@
+{
+  "name": "gksrmf-to-hangul",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p tsconfig.json && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@types/node": "^25.3.5",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.4",
+    "@vitejs/plugin-react": "^5.0.0"
+  }
+}
