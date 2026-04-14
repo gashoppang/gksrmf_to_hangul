@@ -309,10 +309,18 @@ function transliterateToHangul(input: string): string {
   return output + flush()
 }
 
+function transliterateWithRawEnglish(input: string): string {
+  const segments = input.split('//')
+
+  return segments
+    .map((segment, index) => (index % 2 === 1 ? segment : transliterateToHangul(segment)))
+    .join('')
+}
+
 function App() {
   const [source, setSource] = useState('')
 
-  const translated = useMemo(() => transliterateToHangul(source), [source])
+  const translated = useMemo(() => transliterateWithRawEnglish(source), [source])
 
   return (
     <main className="page">
@@ -328,6 +336,7 @@ function App() {
               placeholder="예: gksrmf"
               spellCheck={false}
             />
+            <p className="field-hint">영어 원문은 `//hello world//`처럼 감싸면 그대로 출력됩니다.</p>
           </label>
           <label className="field">
             <span>한글 결과</span>
