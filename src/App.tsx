@@ -101,9 +101,27 @@ const tailDoubleMap: Record<string, number> = {
   qT: 18,
 }
 
+const splitTailMap: Record<number, [number, number]> = {
+  3: [1, 19],
+  5: [4, 22],
+  6: [4, 27],
+  9: [8, 1],
+  10: [8, 16],
+  11: [8, 17],
+  12: [8, 19],
+  13: [8, 25],
+  14: [8, 26],
+  15: [8, 27],
+  18: [17, 19],
+}
+
 function toUnicodeSyllable(lead: number, vowel: number, tail: number): string {
   const code = 0xAC00 + lead * 588 + vowel * 28 + tail
   return String.fromCharCode(code)
+}
+
+function tailToLeadIndex(tail: number): number {
+  return LEAD_CONSONANTS.indexOf(TRAILING_CONSONANTS[tail])
 }
 
 function transliterateToHangul(input: string): string {
@@ -148,6 +166,25 @@ function transliterateToHangul(input: string): string {
 
     if (isVowel) {
       const nextVowel = vowelSingleMap[ch]
+
+      if (tail !== -1) {
+        const splitTail = splitTailMap[tail]
+
+        if (splitTail) {
+          output += toUnicodeSyllable(lead, vowel, splitTail[0])
+          lead = tailToLeadIndex(splitTail[1])
+        } else {
+          output += toUnicodeSyllable(lead, vowel, 0)
+          lead = tailToLeadIndex(tail)
+        }
+
+        leadKey = ''
+        vowel = nextVowel
+        vowelKey = ch
+        tail = -1
+        tailKey = ''
+        continue
+      }
 
       if (vowel === -1) {
         vowel = nextVowel
@@ -233,6 +270,17 @@ function transliterateToHangul(input: string): string {
 
         tail = singleTail
         tailKey = ch
+        continue
+      }
+
+      if (nextIsVowel) {
+        output += flush()
+        lead = nextLead
+        leadKey = ch
+        vowel = -1
+        vowelKey = ''
+        tail = -1
+        tailKey = ''
         continue
       }
 
