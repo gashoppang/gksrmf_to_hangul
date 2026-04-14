@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import './App.css'
 
 const LEAD_CONSONANTS = ['ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ']
@@ -319,8 +319,28 @@ function transliterateWithRawEnglish(input: string): string {
 
 function App() {
   const [source, setSource] = useState('')
+  const [copyLabel, setCopyLabel] = useState('복사')
 
   const translated = useMemo(() => transliterateWithRawEnglish(source), [source])
+
+  useEffect(() => {
+    if (copyLabel === '복사') return
+
+    const timeoutId = window.setTimeout(() => setCopyLabel('복사'), 1500)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [copyLabel])
+
+  const handleCopy = async () => {
+    if (!translated) return
+
+    try {
+      await navigator.clipboard.writeText(translated)
+      setCopyLabel('복사됨')
+    } catch {
+      setCopyLabel('실패')
+    }
+  }
 
   return (
     <main className="page">
@@ -328,20 +348,32 @@ function App() {
         <h1>영타→한글 번역기</h1>
         <p className="subtitle">영타를 한국어로 바꿉니다.</p>
         <div className="translator-grid">
-          <label className="field">
-            <span>영타 입력</span>
+          <div className="field">
+            <span className="field-header">
+              <label htmlFor="source">영타 입력</label>
+              <span className="field-header-spacer" aria-hidden="true" />
+            </span>
             <textarea
+              id="source"
               value={source}
               onChange={(event) => setSource(event.target.value)}
               placeholder="예: gksrmf"
               spellCheck={false}
             />
             <p className="field-hint">영어 원문은 `//hello world//`처럼 감싸면 그대로 출력됩니다.</p>
-          </label>
-          <label className="field">
-            <span>한글 결과</span>
-            <textarea value={translated} readOnly />
-          </label>
+          </div>
+          <div className="field">
+            <span className="field-header">
+              <label htmlFor="translated">한글 결과</label>
+              <button type="button" className="copy-button" onClick={handleCopy} disabled={!translated}>
+                {copyLabel}
+              </button>
+            </span>
+            <textarea id="translated" value={translated} readOnly />
+            <p className="field-hint field-hint-placeholder" aria-hidden="true">
+              안내 자리 맞춤
+            </p>
+          </div>
         </div>
       </section>
     </main>

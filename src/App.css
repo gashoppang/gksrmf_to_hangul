@@ -62,10 +62,51 @@ h1 {
   color: #dce5ff;
 }
 
+.field-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 36px;
+}
+
+.field-header-spacer {
+  display: block;
+  width: 58px;
+  height: 1px;
+}
+
 .field-hint {
   margin: 0;
   color: var(--muted);
   font-size: 0.92rem;
+  min-height: 22px;
+}
+
+.field-hint-placeholder {
+  visibility: hidden;
+}
+
+.copy-button {
+  border: 1px solid rgba(180, 201, 255, 0.28);
+  border-radius: 999px;
+  padding: 7px 12px;
+  background: rgba(11, 24, 52, 0.9);
+  color: #eef4ff;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.18s ease, border-color 0.18s ease, opacity 0.18s ease;
+}
+
+.copy-button:hover:not(:disabled) {
+  background: rgba(30, 55, 108, 0.95);
+  border-color: rgba(190, 210, 255, 0.5);
+}
+
+.copy-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .field textarea {
@@ -78,7 +119,7 @@ h1 {
   color: #f7faff;
   font-size: 1.2rem;
   line-height: 1.6;
-  resize: vertical;
+  resize: none;
 }
 
 .field textarea:focus {
