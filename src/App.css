@@ -79,9 +79,11 @@ h1 {
   color: var(--muted);
 }
 
-.single-actions {
+.input-toolbar {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .copy-button {

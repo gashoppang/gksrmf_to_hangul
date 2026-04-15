@@ -563,9 +563,14 @@ function App() {
         <h1>한글 IME 입력기</h1>
         <p className="subtitle">입력한 영타가 실시간으로 같은 위치 기준으로 변환됩니다.</p>
         <div className="single-io">
-          <label className="field-label" htmlFor="source">
-            입력
-          </label>
+          <div className="input-toolbar">
+            <label className="field-label" htmlFor="source">
+              입력
+            </label>
+            <button type="button" className="copy-button" onClick={handleCopy} disabled={!translated}>
+              {copyLabel}
+            </button>
+          </div>
           <textarea
             id="source"
             ref={inputRef}
@@ -579,11 +584,6 @@ function App() {
             placeholder="예: gksrmf"
             spellCheck={false}
           />
-          <div className="single-actions">
-            <button type="button" className="copy-button" onClick={handleCopy} disabled={!translated}>
-              {copyLabel}
-            </button>
-          </div>
         </div>
       </section>
     </main>
