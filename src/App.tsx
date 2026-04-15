@@ -1,7 +1,6 @@
 import {
   type ClipboardEvent,
   type KeyboardEvent,
-  type SyntheticEvent,
   useEffect,
   useMemo,
   useRef,
@@ -445,9 +444,26 @@ function App() {
     }
   }
 
-  const handleSelect = (event: SyntheticEvent<HTMLTextAreaElement>) => {
-    const element = event.currentTarget
+  const syncCaretFromDisplayElement = () => {
+    const element = inputRef.current
+    if (!element) return
     syncCaretFromDisplay(element.selectionStart ?? 0)
+  }
+
+  const handleMouseUp = () => {
+    syncCaretFromDisplayElement()
+  }
+
+  const handleKeyUp = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    const { key, ctrlKey, metaKey, altKey } = event
+
+    if (ctrlKey || metaKey || altKey) return
+
+    if (key.length === 1 || key === 'Enter' || key === 'Backspace' || key === 'Delete') {
+      return
+    }
+
+    syncCaretFromDisplayElement()
   }
 
   const handlePaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
@@ -484,7 +500,8 @@ function App() {
             value={translated}
             onChange={() => {}}
             onKeyDown={handleKeyDown}
-            onSelect={handleSelect}
+            onKeyUp={handleKeyUp}
+            onMouseUp={handleMouseUp}
             onPaste={handlePaste}
             placeholder="예: gksrmf"
             spellCheck={false}
