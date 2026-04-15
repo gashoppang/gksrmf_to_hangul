@@ -163,12 +163,23 @@ function transliterateToHangulWithMap(input: string): ConversionResult {
     tailKey = ''
   }
 
+  const normalizeVowelShift = (raw: string): string => {
+    if (!raw) return raw
+    const lower = raw.toLowerCase()
+    if (raw === lower) return raw
+    if (raw in leadSingleMap) return raw
+    if (lower in vowelSingleMap) return lower
+    return raw
+  }
+
   for (let i = 0; i < input.length; i++) {
-    const ch = input[i]
+    const rawCh = input[i]
+    const ch = normalizeVowelShift(rawCh)
     const isConsonant = ch in leadSingleMap
     const isVowel = ch in vowelSingleMap
     const next = input[i + 1]
-    const nextIsVowel = !!(next && next in vowelSingleMap)
+    const nextCh = next ? normalizeVowelShift(next) : ''
+    const nextIsVowel = !!(nextCh && nextCh in vowelSingleMap)
 
     if (!isConsonant && !isVowel) {
       output += flush()
