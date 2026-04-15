@@ -349,18 +349,18 @@ function rawIndexToDisplayIndex(rawIndex: number, rawPrefix: number[]): number {
 function displayIndexToRawIndex(displayIndex: number, rawPrefix: number[]): number {
   const target = Math.max(0, Math.min(displayIndex, rawPrefix[rawPrefix.length - 1]))
   let lo = 0
-  let hi = rawPrefix.length - 1
+  let hi = rawPrefix.length
 
   while (lo < hi) {
     const mid = (lo + hi) >> 1
-    if (rawPrefix[mid] < target) {
+    if (rawPrefix[mid] <= target) {
       lo = mid + 1
     } else {
       hi = mid
     }
   }
 
-  return lo
+  return Math.max(0, lo - 1)
 }
 
 function App() {
