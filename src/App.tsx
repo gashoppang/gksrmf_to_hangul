@@ -1,7 +1,9 @@
 import {
   type ClipboardEvent,
   type KeyboardEvent,
+  type SyntheticEvent,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react'
@@ -121,6 +123,11 @@ const splitTailMap: Record<number, [number, number]> = {
   18: [17, 19],
 }
 
+type ConversionResult = {
+  text: string
+  rawPrefix: number[]
+}
+
 function toUnicodeSyllable(lead: number, vowel: number, tail: number): string {
   const code = 0xAC00 + lead * 588 + vowel * 28 + tail
   return String.fromCharCode(code)
@@ -130,7 +137,7 @@ function tailToLeadIndex(tail: number): number {
   return LEAD_CONSONANTS.indexOf(TRAILING_CONSONANTS[tail])
 }
 
-function transliterateToHangul(input: string): string {
+function transliterateToHangulWithMap(input: string): ConversionResult {
   let output = ''
   let lead = -1
   let leadKey = ''
@@ -138,6 +145,7 @@ function transliterateToHangul(input: string): string {
   let vowelKey = ''
   let tail = -1
   let tailKey = ''
+  const rawPrefix: number[] = [0]
 
   const flush = (): string => {
     if (lead === -1 && vowel === -1) return ''
@@ -167,6 +175,7 @@ function transliterateToHangul(input: string): string {
       output += flush()
       reset()
       output += ch
+      rawPrefix.push(output.length)
       continue
     }
 
@@ -189,12 +198,14 @@ function transliterateToHangul(input: string): string {
         vowelKey = ch
         tail = -1
         tailKey = ''
+        rawPrefix.push(output.length)
         continue
       }
 
       if (vowel === -1) {
         vowel = nextVowel
         vowelKey = ch
+        rawPrefix.push(output.length + flush().length)
         continue
       }
 
@@ -202,6 +213,7 @@ function transliterateToHangul(input: string): string {
       if (combined !== undefined) {
         vowel = combined
         vowelKey += ch
+        rawPrefix.push(output.length + flush().length)
         continue
       }
 
@@ -212,6 +224,7 @@ function transliterateToHangul(input: string): string {
       vowelKey = ch
       tail = -1
       tailKey = ''
+      rawPrefix.push(output.length + flush().length)
       continue
     }
 
@@ -221,6 +234,7 @@ function transliterateToHangul(input: string): string {
       if (lead === -1) {
         lead = nextLead
         leadKey = ch
+        rawPrefix.push(output.length + flush().length)
         continue
       }
 
@@ -229,12 +243,14 @@ function transliterateToHangul(input: string): string {
         if (doubled !== undefined) {
           lead = doubled
           leadKey += ch
+          rawPrefix.push(output.length + flush().length)
           continue
         }
 
         output += LEAD_CONSONANTS[lead]
         lead = nextLead
         leadKey = ch
+        rawPrefix.push(output.length + flush().length)
         continue
       }
 
@@ -247,6 +263,7 @@ function transliterateToHangul(input: string): string {
           vowelKey = ''
           tail = -1
           tailKey = ''
+          rawPrefix.push(output.length + flush().length)
           continue
         }
 
@@ -259,6 +276,7 @@ function transliterateToHangul(input: string): string {
         if (doubledTail !== undefined) {
           tail = doubledTail
           tailKey += ch
+          rawPrefix.push(output.length + flush().length)
           continue
         }
 
@@ -271,11 +289,13 @@ function transliterateToHangul(input: string): string {
           vowelKey = ''
           tail = -1
           tailKey = ''
+          rawPrefix.push(output.length + flush().length)
           continue
         }
 
         tail = singleTail
         tailKey = ch
+        rawPrefix.push(output.length + flush().length)
         continue
       }
 
@@ -287,6 +307,7 @@ function transliterateToHangul(input: string): string {
         vowelKey = ''
         tail = -1
         tailKey = ''
+        rawPrefix.push(output.length + flush().length)
         continue
       }
 
@@ -299,6 +320,7 @@ function transliterateToHangul(input: string): string {
       if (doubledTail !== undefined) {
         tail = doubledTail
         tailKey += ch
+        rawPrefix.push(output.length + flush().length)
         continue
       }
 
@@ -309,23 +331,51 @@ function transliterateToHangul(input: string): string {
       vowelKey = ''
       tail = -1
       tailKey = ''
+      rawPrefix.push(output.length + flush().length)
     }
   }
 
-  return output + flush()
+  const finalOutput = output + flush()
+  rawPrefix[rawPrefix.length - 1] = finalOutput.length
+
+  return { text: finalOutput, rawPrefix }
+}
+
+function rawIndexToDisplayIndex(rawIndex: number, rawPrefix: number[]): number {
+  const max = rawPrefix.length - 1
+  return rawPrefix[Math.max(0, Math.min(rawIndex, max))]
+}
+
+function displayIndexToRawIndex(displayIndex: number, rawPrefix: number[]): number {
+  const target = Math.max(0, Math.min(displayIndex, rawPrefix[rawPrefix.length - 1]))
+  let lo = 0
+  let hi = rawPrefix.length - 1
+
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1
+    if (rawPrefix[mid] < target) {
+      lo = mid + 1
+    } else {
+      hi = mid
+    }
+  }
+
+  return lo
 }
 
 function App() {
   const [rawInput, setRawInput] = useState('')
+  const [rawCaret, setRawCaret] = useState(0)
   const [copyLabel, setCopyLabel] = useState('복사')
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
-  const translated = transliterateToHangul(rawInput)
+
+  const conversion = useMemo(() => transliterateToHangulWithMap(rawInput), [rawInput])
+  const translated = conversion.text
 
   useEffect(() => {
     if (copyLabel === '복사') return
 
     const timeoutId = window.setTimeout(() => setCopyLabel('복사'), 1500)
-
     return () => window.clearTimeout(timeoutId)
   }, [copyLabel])
 
@@ -333,57 +383,78 @@ function App() {
     const input = inputRef.current
     if (!input) return
 
-    const end = translated.length
-    input.setSelectionRange(end, end)
-  }, [translated])
+    const target = rawIndexToDisplayIndex(rawCaret, conversion.rawPrefix)
+    if (input.selectionStart === target && input.selectionEnd === target) return
+
+    input.setSelectionRange(target, target)
+  }, [rawCaret, conversion.rawPrefix, translated])
+
+  const syncCaretFromDisplay = (displayIndex: number) => {
+    const nextRaw = displayIndexToRawIndex(displayIndex, conversion.rawPrefix)
+    setRawCaret(nextRaw)
+  }
+
+  const insertRawAtCaret = (value: string) => {
+    if (!value) return
+    setRawInput((prev) => prev.slice(0, rawCaret) + value + prev.slice(rawCaret))
+    setRawCaret((prev) => prev + value.length)
+  }
+
+  const deleteBeforeCaret = () => {
+    if (rawCaret === 0) return
+    setRawInput((prev) => prev.slice(0, rawCaret - 1) + prev.slice(rawCaret))
+    setRawCaret((prev) => prev - 1)
+  }
+
+  const deleteAtCaret = () => {
+    if (rawCaret >= rawInput.length) return
+    setRawInput((prev) => prev.slice(0, rawCaret) + prev.slice(rawCaret + 1))
+  }
 
   const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     const { key, ctrlKey, metaKey, altKey } = event
+    const isModifier = ctrlKey || metaKey || altKey
 
-    if (ctrlKey || metaKey || altKey) {
+    if (isModifier) return
+
+    if (key === 'ArrowLeft' || key === 'ArrowRight' || key === 'ArrowUp' || key === 'ArrowDown' || key === 'Home' || key === 'End' || key === 'PageUp' || key === 'PageDown') {
       return
     }
 
     if (key === 'Backspace') {
       event.preventDefault()
-      setRawInput((prev) => prev.slice(0, -1))
+      deleteBeforeCaret()
       return
     }
 
     if (key === 'Delete') {
       event.preventDefault()
-      setRawInput((prev) => prev.slice(0, -1))
+      deleteAtCaret()
       return
     }
 
     if (key === 'Enter') {
       event.preventDefault()
-      setRawInput((prev) => `${prev}\n`)
-      return
-    }
-
-    if (
-      key === 'Tab' ||
-      key.startsWith('Arrow') ||
-      key === 'Home' ||
-      key === 'End' ||
-      key === 'PageUp' ||
-      key === 'PageDown'
-    ) {
+      insertRawAtCaret('\n')
       return
     }
 
     if (key.length === 1) {
       event.preventDefault()
-      setRawInput((prev) => `${prev}${key}`)
+      insertRawAtCaret(key)
     }
+  }
+
+  const handleSelect = (event: SyntheticEvent<HTMLTextAreaElement>) => {
+    const element = event.currentTarget
+    syncCaretFromDisplay(element.selectionStart ?? 0)
   }
 
   const handlePaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
     event.preventDefault()
     const text = event.clipboardData.getData('text')
     if (!text) return
-    setRawInput((prev) => `${prev}${text}`)
+    insertRawAtCaret(text)
   }
 
   const handleCopy = async () => {
@@ -401,7 +472,7 @@ function App() {
     <main className="page">
       <section className="card">
         <h1>한글 IME 입력기</h1>
-        <p className="subtitle">입력한 영타가 즉시 같은 창에서 한글로 변환됩니다.</p>
+        <p className="subtitle">입력한 영타가 실시간으로 같은 위치 기준으로 변환됩니다.</p>
         <div className="single-io">
           <label className="field-label" htmlFor="source">
             입력
@@ -413,6 +484,7 @@ function App() {
             value={translated}
             onChange={() => {}}
             onKeyDown={handleKeyDown}
+            onSelect={handleSelect}
             onPaste={handlePaste}
             placeholder="예: gksrmf"
             spellCheck={false}
