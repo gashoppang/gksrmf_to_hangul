@@ -1,6 +1,7 @@
 import {
   type ClipboardEvent,
   type KeyboardEvent,
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -413,7 +414,7 @@ function App() {
     input.setSelectionRange(target, target)
   }, [rawCaret, conversion.rawPrefix, translated, hasSelection, selectionStart, selectionEnd])
 
-  const syncSelectionFromDisplay = () => {
+  const syncSelectionFromDisplay = useCallback(() => {
     const element = inputRef.current
     if (!element) return
 
@@ -425,7 +426,17 @@ function App() {
     setRawSelectionStart(a)
     setRawSelectionEnd(b)
     setRawCaret(b)
-  }
+  }, [conversion.rawPrefix])
+
+  useEffect(() => {
+    const handlePointerUp = () => {
+      syncSelectionFromDisplay()
+    }
+
+    document.addEventListener('pointerup', handlePointerUp)
+    return () => document.removeEventListener('pointerup', handlePointerUp)
+  }, [syncSelectionFromDisplay])
+
 
   const insertRawAtCaret = (value: string) => {
     if (!value) return
