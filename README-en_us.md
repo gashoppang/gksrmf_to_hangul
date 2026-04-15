@@ -3,14 +3,16 @@
 [한국어](./README.md) | English
 
 This is a simple web app that converts English keyboard input into Hangul.  
-For example, entering `gksrmf` converts it to `한글`.
+For example, typing `gksrmf` converts to `한글` in real time.
+
+It behaves like a single-window IME where the typed text is transformed in-place.
 
 ## Features
 
-- Converts two-set Korean keyboard input into Hangul
-- Updates the result instantly as you type
+- Single-window IME-style behavior
+- Converts two-set Korean keyboard input to Hangul instantly as you type
 - Provides a button to copy the converted text
-- Keeps raw English text unchanged when wrapped like `//hello world//`
+- No separate raw-English escape syntax
 
 ## Tech Stack
 
@@ -73,7 +75,6 @@ VITE_ALLOWED_HOSTS=
 
 - `gksrmf` -> `한글`
 - `dkssudgktpdy` -> `안녕하세요`
-- `dkssud //hello// gktpdy` -> `안녕 hello 하세요`
 
 ## Project Structure
 
