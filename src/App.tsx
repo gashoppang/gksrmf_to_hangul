@@ -250,7 +250,7 @@ function transliterateToHangulWithMap(input: string): ConversionResult {
 
       if (vowel === -1) {
         const doubled = leadDoubleMap[`${leadKey}${ch}`]
-        if (doubled !== undefined) {
+        if (doubled !== undefined && leadKey !== ch) {
           lead = doubled
           leadKey += ch
           rawPrefix.push(output.length + flush().length)
@@ -283,7 +283,7 @@ function transliterateToHangulWithMap(input: string): ConversionResult {
           tailDoubleMap[`${tailKey}${ch.toLowerCase()}`] ??
           tailDoubleMap[`${tailKey.toLowerCase()}${ch.toLowerCase()}`]
 
-        if (doubledTail !== undefined) {
+        if (doubledTail !== undefined && tailKey !== ch) {
           tail = doubledTail
           tailKey += ch
           rawPrefix.push(output.length + flush().length)
@@ -327,7 +327,7 @@ function transliterateToHangulWithMap(input: string): ConversionResult {
         tailDoubleMap[`${tailKey}${ch.toLowerCase()}`] ??
         tailDoubleMap[`${tailKey.toLowerCase()}${ch.toLowerCase()}`]
 
-      if (doubledTail !== undefined) {
+      if (doubledTail !== undefined && tailKey !== ch) {
         tail = doubledTail
         tailKey += ch
         rawPrefix.push(output.length + flush().length)
