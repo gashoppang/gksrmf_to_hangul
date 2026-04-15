@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import {
+  type ClipboardEvent,
+  type KeyboardEvent,
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
 import './App.css'
 
 const LEAD_CONSONANTS = ['ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ']
@@ -309,19 +315,11 @@ function transliterateToHangul(input: string): string {
   return output + flush()
 }
 
-function transliterateWithRawEnglish(input: string): string {
-  const segments = input.split('//')
-
-  return segments
-    .map((segment, index) => (index % 2 === 1 ? segment : transliterateToHangul(segment)))
-    .join('')
-}
-
 function App() {
-  const [source, setSource] = useState('')
+  const [rawInput, setRawInput] = useState('')
   const [copyLabel, setCopyLabel] = useState('복사')
-
-  const translated = useMemo(() => transliterateWithRawEnglish(source), [source])
+  const inputRef = useRef<HTMLTextAreaElement | null>(null)
+  const translated = transliterateToHangul(rawInput)
 
   useEffect(() => {
     if (copyLabel === '복사') return
@@ -330,6 +328,63 @@ function App() {
 
     return () => window.clearTimeout(timeoutId)
   }, [copyLabel])
+
+  useEffect(() => {
+    const input = inputRef.current
+    if (!input) return
+
+    const end = translated.length
+    input.setSelectionRange(end, end)
+  }, [translated])
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    const { key, ctrlKey, metaKey, altKey } = event
+
+    if (ctrlKey || metaKey || altKey) {
+      return
+    }
+
+    if (key === 'Backspace') {
+      event.preventDefault()
+      setRawInput((prev) => prev.slice(0, -1))
+      return
+    }
+
+    if (key === 'Delete') {
+      event.preventDefault()
+      setRawInput((prev) => prev.slice(0, -1))
+      return
+    }
+
+    if (key === 'Enter') {
+      event.preventDefault()
+      setRawInput((prev) => `${prev}\n`)
+      return
+    }
+
+    if (
+      key === 'Tab' ||
+      key.startsWith('Arrow') ||
+      key === 'Home' ||
+      key === 'End' ||
+      key === 'PageUp' ||
+      key === 'PageDown'
+    ) {
+      return
+    }
+
+    if (key.length === 1) {
+      event.preventDefault()
+      setRawInput((prev) => `${prev}${key}`)
+    }
+  }
+
+  const handlePaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
+    event.preventDefault()
+    const text = event.clipboardData.getData('text')
+    if (!text) return
+    setRawInput((prev) => `${prev}${text}`)
+  }
 
   const handleCopy = async () => {
     if (!translated) return
@@ -345,34 +400,27 @@ function App() {
   return (
     <main className="page">
       <section className="card">
-        <h1>영타→한글 번역기</h1>
-        <p className="subtitle">영타를 한국어로 바꿉니다.</p>
-        <div className="translator-grid">
-          <div className="field">
-            <span className="field-header">
-              <label htmlFor="source">영타 입력</label>
-              <span className="field-header-spacer" aria-hidden="true" />
-            </span>
-            <textarea
-              id="source"
-              value={source}
-              onChange={(event) => setSource(event.target.value)}
-              placeholder="예: gksrmf"
-              spellCheck={false}
-            />
-            <p className="field-hint">영어 원문은 `//hello world//`처럼 감싸면 그대로 출력됩니다.</p>
-          </div>
-          <div className="field">
-            <span className="field-header">
-              <label htmlFor="translated">한글 결과</label>
-              <button type="button" className="copy-button" onClick={handleCopy} disabled={!translated}>
-                {copyLabel}
-              </button>
-            </span>
-            <textarea id="translated" value={translated} readOnly />
-            <p className="field-hint field-hint-placeholder" aria-hidden="true">
-              안내 자리 맞춤
-            </p>
+        <h1>한글 IME 입력기</h1>
+        <p className="subtitle">입력한 영타가 즉시 같은 창에서 한글로 변환됩니다.</p>
+        <div className="single-io">
+          <label className="field-label" htmlFor="source">
+            입력
+          </label>
+          <textarea
+            id="source"
+            ref={inputRef}
+            className="source-textarea"
+            value={translated}
+            onChange={() => {}}
+            onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
+            placeholder="예: gksrmf"
+            spellCheck={false}
+          />
+          <div className="single-actions">
+            <button type="button" className="copy-button" onClick={handleCopy} disabled={!translated}>
+              {copyLabel}
+            </button>
           </div>
         </div>
       </section>
