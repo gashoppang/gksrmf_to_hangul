@@ -376,11 +376,16 @@ function displayIndexToRawIndex(displayIndex: number, rawPrefix: number[]): numb
 function App() {
   const [rawInput, setRawInput] = useState('')
   const [rawCaret, setRawCaret] = useState(0)
+  const [rawSelectionStart, setRawSelectionStart] = useState(0)
+  const [rawSelectionEnd, setRawSelectionEnd] = useState(0)
   const [copyLabel, setCopyLabel] = useState('복사')
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
 
   const conversion = useMemo(() => transliterateToHangulWithMap(rawInput), [rawInput])
   const translated = conversion.text
+  const hasSelection = rawSelectionStart !== rawSelectionEnd
+  const selectionStart = Math.min(rawSelectionStart, rawSelectionEnd)
+  const selectionEnd = Math.max(rawSelectionStart, rawSelectionEnd)
 
   useEffect(() => {
     if (copyLabel === '복사') return
@@ -393,32 +398,84 @@ function App() {
     const input = inputRef.current
     if (!input) return
 
+    if (hasSelection) {
+      const start = rawIndexToDisplayIndex(selectionStart, conversion.rawPrefix)
+      const end = rawIndexToDisplayIndex(selectionEnd, conversion.rawPrefix)
+
+      if (input.selectionStart === start && input.selectionEnd === end) return
+      input.setSelectionRange(start, end)
+      return
+    }
+
     const target = rawIndexToDisplayIndex(rawCaret, conversion.rawPrefix)
     if (input.selectionStart === target && input.selectionEnd === target) return
 
     input.setSelectionRange(target, target)
-  }, [rawCaret, conversion.rawPrefix, translated])
+  }, [rawCaret, conversion.rawPrefix, translated, hasSelection, selectionStart, selectionEnd])
 
-  const syncCaretFromDisplay = (displayIndex: number) => {
-    const nextRaw = displayIndexToRawIndex(displayIndex, conversion.rawPrefix)
-    setRawCaret(nextRaw)
+  const syncSelectionFromDisplay = () => {
+    const element = inputRef.current
+    if (!element) return
+
+    const nextStart = displayIndexToRawIndex(element.selectionStart ?? 0, conversion.rawPrefix)
+    const nextEnd = displayIndexToRawIndex(element.selectionEnd ?? nextStart, conversion.rawPrefix)
+    const a = Math.min(nextStart, nextEnd)
+    const b = Math.max(nextStart, nextEnd)
+
+    setRawSelectionStart(a)
+    setRawSelectionEnd(b)
+    setRawCaret(b)
   }
 
   const insertRawAtCaret = (value: string) => {
     if (!value) return
-    setRawInput((prev) => prev.slice(0, rawCaret) + value + prev.slice(rawCaret))
-    setRawCaret((prev) => prev + value.length)
+
+    const nextCaret = hasSelection
+      ? selectionStart + value.length
+      : rawCaret + value.length
+
+    setRawInput((prev) => {
+      const start = hasSelection ? selectionStart : rawCaret
+      const end = hasSelection ? selectionEnd : rawCaret
+      return prev.slice(0, start) + value + prev.slice(end)
+    })
+
+    setRawCaret(nextCaret)
+    setRawSelectionStart(nextCaret)
+    setRawSelectionEnd(nextCaret)
   }
 
   const deleteBeforeCaret = () => {
+    if (hasSelection) {
+      setRawInput((prev) => prev.slice(0, selectionStart) + prev.slice(selectionEnd))
+      setRawCaret(selectionStart)
+      setRawSelectionStart(selectionStart)
+      setRawSelectionEnd(selectionStart)
+      return
+    }
+
     if (rawCaret === 0) return
+
     setRawInput((prev) => prev.slice(0, rawCaret - 1) + prev.slice(rawCaret))
     setRawCaret((prev) => prev - 1)
+    setRawSelectionStart(rawCaret - 1)
+    setRawSelectionEnd(rawCaret - 1)
   }
 
   const deleteAtCaret = () => {
+    if (hasSelection) {
+      setRawInput((prev) => prev.slice(0, selectionStart) + prev.slice(selectionEnd))
+      setRawCaret(selectionStart)
+      setRawSelectionStart(selectionStart)
+      setRawSelectionEnd(selectionStart)
+      return
+    }
+
     if (rawCaret >= rawInput.length) return
+
     setRawInput((prev) => prev.slice(0, rawCaret) + prev.slice(rawCaret + 1))
+    setRawSelectionStart(rawCaret)
+    setRawSelectionEnd(rawCaret)
   }
 
   const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -455,14 +512,8 @@ function App() {
     }
   }
 
-  const syncCaretFromDisplayElement = () => {
-    const element = inputRef.current
-    if (!element) return
-    syncCaretFromDisplay(element.selectionStart ?? 0)
-  }
-
   const handleMouseUp = () => {
-    syncCaretFromDisplayElement()
+    syncSelectionFromDisplay()
   }
 
   const handleKeyUp = (event: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -474,7 +525,7 @@ function App() {
       return
     }
 
-    syncCaretFromDisplayElement()
+    syncSelectionFromDisplay()
   }
 
   const handlePaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
